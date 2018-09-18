@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Aspect Ratio with Preview Pane | Jcrop Demo</title>
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8"/>
+
+    <script src="plugins/jquery-3.3.1.min.js"></script>
+    <script src="js/jcrop/jquery.Jcrop.js"></script>
+
+    <link rel="stylesheet" href="css/main.css" type="text/css"/>
+    <link rel="stylesheet" href="css/demos.css" type="text/css"/>
+    <link rel="stylesheet" href="css/jquery.Jcrop.css" type="text/css"/>
+    <style type="text/css">
+        /* Apply these styles only when #preview-pane has
+   been placed within the Jcrop widget */
+
+        .jcrop-holder #preview-pane {
+            display: block;
+            position: absolute;
+            z-index: 2000;
+            top: 10px;
+            right: -280px;
+            padding: 6px;
+            border: 1px rgba(0, 0, 0, .4) solid;
+            background-color: white;
+
+            -webkit-border-radius: 6px;
+            -moz-border-radius: 6px;
+            border-radius: 6px;
+
+            -webkit-box-shadow: 1px 1px 5px 2px rgba(0, 0, 0, 0.2);
+            -moz-box-shadow: 1px 1px 5px 2px rgba(0, 0, 0, 0.2);
+            box-shadow: 1px 1px 5px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        /* The Javascript code will set the aspect ratio of the crop
+   area based on the size of the thumbnail preview,
+   specified here */
+
+        #preview-pane .preview-container {
+            width: 250px;
+            height: 170px;
+            overflow: hidden;
+        }
+    </style>
+
+
+    <script type="text/javascript">
+        //目标图像宽度
+        var targetWidth = 400;
+        //目标图像高度
+        var targetHeight = 300;
+        //文件名
+        var fileName;
+        //canvas需要使用的参数
+        var rw;
+        var rh;
+        var rx1;
+        var ry1;
+        var rx2;
+        var ry2;
+        var jcrop_api,
+            boundx,
+            boundy,
+            $preview,
+            $pcnt,
+            $pimg,
+            xsize,
+            ysize;
+
+        function initImg() {
+            if (jcrop_api != undefined) {
+                jcrop_api.setImage($('#img1').attr('src'), function () {
+                        this.option = {
+                            onChange: updatePreview,
+                            onSelect: updatePreview,
+                            boxWidth: 200,
+                            aspectRatio: targetWidth / targetHeight,
+                            setSelect: [0, 0, xsize, ysize]
+                        };
+                        var bounds = this.getBounds();
+                        boundx = bounds[0];
+                        boundy = bounds[1];
+                        // Store the API in the jcrop_api variable
+                        jcrop_api = this;
+                        // Move the preview into the jcrop container for css positioning
+                        $preview.appendTo(jcrop_api.ui.holder);
+                        return false;
+                    }
+                );
+            }
+            // Create variables (in this scope) to hold the API and image size
+            $preview = $('#preview-pane');
+            $pcnt = $('#preview-pane .preview-container');
+            $pimg = $('#img2');
+
+            xsize = $pcnt.width();
+            ysize = $pcnt.height();
+
+            console.log('init', [xsize, ysize]);
+
+            $('#img1').Jcrop({
+                onChange: updatePreview,
+                onSelect: updatePreview,
+                boxWidth: 200,
+                aspectRatio: targetWidth / targetHeight,
+                setSelect: [0, 0, xsize, ysize]
+            }, function () {
+                // Use the API to get the real image size
+                var bounds = this.getBounds();
+                boundx = bounds[0];
+                boundy = bounds[1];
+                // Store the API in the jcrop_api variable
+                jcrop_api = this;
+                // Move the preview into the jcrop container for css positioning
+                $preview.appendTo(jcrop_api.ui.holder);
+            });
+        }
+
+        /**
+         * 选框改变所执行的方法
+         * @param c
+         */
+        function updatePreview(c) {
+            if (parseInt(c.w) > 0) {
+                rx1 = c.x;
+                ry1 = c.y;
+                rw = c.w;
+                rh = c.h;
+                rx2 = c.x2;
+                ry2 = c.y2;
+                var rx = xsize / c.w;
+                var ry = ysize / c.h;
+                //右侧小图所看到的图片，遮罩
+                $pimg.css({
+                    width: Math.round(rx * boundx) + 'px',
+                    height: Math.round(ry * boundy) + 'px',
+                    marginLeft: '-' + Math.round(rx * c.x) + 'px',
+                    marginTop: '-' + Math.round(ry * c.y) + 'px'
+                });
+            }
+        }
+
+        function upload() {
+            drawImage(rx1, ry1, rw, rh);
+        }
+
+        //使用canvas生成图片并提交至后台
+        function drawImage(rx1, ry1, rw, rh) {
+            //创建一个canvas标签
+            var oC = document.getElementById("c1");
+            if (oC == undefined) {
+                var html = "<div>\n" +
+                    "<canvas id=\"c1\" class=\"blur\" hidden></canvas>\n" +
+                    "</div>";
+                $("body").append(html);
+                oC = document.getElementById("c1");
+            }
+            var oGC = oC.getContext("2d");
+            var img = document.getElementById("img1");
+            oC.width = targetWidth;
+            oC.height = targetHeight;
+            console.info(rx1 + "=" + ry1 + "=" + rw + "=" + rh);
+            oGC.drawImage(img, rx1, ry1, rw, rh, 0, 0, targetWidth, targetHeight);
+            //            oGC.scale(targetWidth / rw, targetHeight / rh);
+            var data = oC.toDataURL("image/jpeg", 0.5);
+            //生成的文件中"data:image/jpeg;base64,"为多余数据，替换掉
+            data = data.replace("data:image/jpeg;base64,", "");
+
+            //表单方式提交数据
+            $('#registerForm').attr("enctype", "multipart/form-data");
+            var formData = new FormData($("#registerForm"));
+            formData.append("fileName", fileName);
+            //使用URI编码
+            formData.append("imgBase64", encodeURIComponent(data));
+            $.ajax({
+                url: "/upload/img",
+                type: 'POST',
+                data: formData,
+                timeout: 10000, //超时时间设置，单位毫秒
+                async: true,
+                cache: false,
+                contentType: false,
+                processData: false,
+                success: function (result) {
+                },
+                error: function (errorResult) {
+                }
+            });
+        }
+
+        function preview(file) {
+            $(".jc-demo-box").show();
+            if (file.files && file.files[0]) {
+                var reader = new FileReader();
+                fileName = file.files[0].name;
+                reader.onload = function (evt) {
+
+
+                    $('#img1').removeAttr('src');
+                    $('#img2').removeAttr('src');
+                    $('#img1').attr('src', evt.target.result);
+                    $('#img2').attr('src', evt.target.result);
+                };
+                reader.readAsDataURL(file.files[0]);
+            } else {
+                $('#img1').removeAttr('src');
+                $('#img2').removeAttr('src');
+                $('#img1').attr('src', file.value);
+                $('#img2').attr('src', file.value);
+            }
+            $('#img1').load(function () {
+                initImg();
+            });
+        }
+    </script>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="span12">
+            <input id="photoBtn" type="button" onclick="document.getElementById('inputImage').click()" value="选择照片">
+            <!-- 可以增加自己的样式 -->
+            <input id="inputImage" type="file" accept="image/*" style="display: none;" onchange="preview(this)"/>
+            <div class="jc-demo-box" hidden>
+                <img src="" id="img1" alt="[Jcrop Example]"/>
+                <div id="preview-pane">
+                    <div class="preview-container">
+                        <img id="img2" src="" class="jcrop-preview" style="overflow: hidden" alt="Preview"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <form id="registerForm" hidden></form>
+    <div class="container">
+        <div class="row">
+            <div class="span12">
+                <button onclick="upload()">上传</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
