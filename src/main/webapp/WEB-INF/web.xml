@@ -5,7 +5,7 @@
          xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee http://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
 <servlet>
     <servlet-name>uploadimg</servlet-name>
-    <servlet-class>com.cdvcloud.servlet.UploadImgServlet</servlet-class>
+    <servlet-class>com.songyuankun.servlet.UploadImgServlet</servlet-class>
 </servlet>
     <servlet-mapping>
         <servlet-name>uploadimg</servlet-name>
